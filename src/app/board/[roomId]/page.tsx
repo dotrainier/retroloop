@@ -1,14 +1,14 @@
 'use client';
 
+import { useParams } from 'next/navigation';
 import { useBoard } from '@/hooks/useBoard';
 import Toolbar from '@/components/board/Toolbar';
 import BoardCanvas from '@/components/board/BoardCanvas';
 import NoteComposer from '@/components/board/NoteComposer';
 
-const ROOM_ID = 'test-room'; // hardcoded for now — will come from the URL later
-
 export default function BoardPage() {
-  const board = useBoard(ROOM_ID);
+  const { roomId } = useParams<{ roomId: string }>();
+  const board = useBoard(roomId);
 
   if (!board.ready) {
     return (
@@ -20,7 +20,7 @@ export default function BoardPage() {
 
   return (
     <main className='relative h-screen w-screen overflow-hidden'>
-      <Toolbar roomId={ROOM_ID} connected={board.connected} users={board.users} me={board.me} />
+      <Toolbar roomId={roomId} connected={board.connected} users={board.users} me={board.me} />
       <BoardCanvas
         notes={board.notes}
         cursors={board.cursors}

@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled — used by the app at runtime
+  directUrl = env("DIRECT_URL")   // direct — used by the CLI for migrations
+}
+
+model Board {
+  id        String   @id @default(cuid())
+  title     String   @default("Untitled board")
+  createdAt DateTime @default(now())
+  notes     Note[]
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  text      String
+  color     String
+  author    String
+  x         Float // 0–1 fraction of the board width
+  y         Float // 0–1 fraction of the board height
+  createdAt DateTime @default(now())
+
+  boardId String
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}

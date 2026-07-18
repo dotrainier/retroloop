@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -15,20 +16,33 @@ export function useBoard(roomId: string) {
   const [cursors, setCursors] = useState<Record<string, CursorInfo>>({});
   const [notes, setNotes] = useState<Record<string, Note>>({});
 
-  // Our own identity. Generated lazily (once) and only ever shown after mount,
-  // so the random value can't cause a server/client hydration mismatch.
   const [me] = useState<Identity>(() => ({ name: randomName(), color: randomColor() }));
-
-  // Gate: false on server + first client render (they match), true after mount.
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: bridges SSR/client hydration mismatch
     setReady(true);
   }, []);
 
+  // Load persisted notes from the database (the source of truth) on mount.
   useEffect(() => {
     if (!ready) return;
+    let cancelled = false;
+    fetch(`/api/boards/${roomId}`)
+      .then((r) => r.json())
+      .then((board: { notes: Note[] }) => {
+        if (cancelled) return;
+        const record: Record<string, Note> = {};
+        for (const n of board.notes) record[n.id] = n;
+        setNotes(record);
+      })
+      .catch((e) => console.error('Failed to load board', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, roomId]);
 
+  // Real-time layer: presence, cursors, and live note relays.
+  useEffect(() => {
+    if (!ready) return;
     const url = process.env.NEXT_PUBLIC_SOCKET_URL;
     if (!url) {
       console.error('NEXT_PUBLIC_SOCKET_URL is not set');
@@ -46,7 +60,6 @@ export function useBoard(roomId: string) {
 
     socket.on('presence-update', (list: RoomUser[]) => {
       setUsers(list);
-      // Drop cursors belonging to people who have left.
       const online = new Set(list.map((u) => u.socketId));
       setCursors((prev) => {
         const next: Record<string, CursorInfo> = {};
@@ -55,13 +68,13 @@ export function useBoard(roomId: string) {
       });
     });
 
-    socket.on('notes-sync', (list: Note[]) => {
-      const record: Record<string, Note> = {};
-      for (const n of list) record[n.id] = n;
-      setNotes(record);
-    });
     socket.on('note-create', (note: Note) => {
       setNotes((prev) => ({ ...prev, [note.id]: note }));
+    });
+    socket.on('note-move', (m: { id: string; x: number; y: number }) => {
+      setNotes((prev) =>
+        prev[m.id] ? { ...prev, [m.id]: { ...prev[m.id], x: m.x, y: m.y } } : prev,
+      );
     });
     socket.on('note-delete', (id: string) => {
       setNotes((prev) => {
@@ -78,43 +91,59 @@ export function useBoard(roomId: string) {
       }));
     });
 
-    socket.on('note-move', (m: { id: string; x: number; y: number }) => {
-      setNotes((prev) =>
-        prev[m.id] ? { ...prev, [m.id]: { ...prev[m.id], x: m.x, y: m.y } } : prev,
-      );
-    });
-
     return () => {
       socket.disconnect();
     };
   }, [ready, roomId, me]);
 
-  // ---- actions exposed to the UI ----
+  // ---- actions: each one persists to the DB, then relays over the socket ----
 
-  const createNote = (text: string) => {
-    if (!text.trim() || !socketRef.current) return;
+  const createNote = async (text: string) => {
+    if (!text.trim()) return;
     const { x, y } = scatterPosition();
-    socketRef.current.emit('note-create', { roomId, text, x, y });
+    try {
+      const res = await fetch(`/api/boards/${roomId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, color: me.color, author: me.name, x, y }),
+      });
+      if (!res.ok) throw new Error('Failed to create note');
+      const note: Note = await res.json(); // DB-assigned id comes back here
+      setNotes((prev) => ({ ...prev, [note.id]: note })); // show it for us
+      socketRef.current?.emit('note-create', { roomId, note }); // and for others
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const deleteNote = (id: string) => {
+    setNotes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    }); // optimistic
     socketRef.current?.emit('note-delete', { roomId, noteId: id });
+    fetch(`/api/notes/${id}`, { method: 'DELETE' }).catch((e) => console.error(e));
   };
 
   const moveNote = (id: string, x: number, y: number, isFinal = false) => {
-    // Optimistic: update our own copy instantly so the drag feels responsive.
     setNotes((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], x, y } } : prev));
 
-    // Throttle the network chatter, but always send the final resting position.
     const now = Date.now();
     if (!isFinal && now - lastMoveSent.current < 40) return;
     lastMoveSent.current = now;
-    socketRef.current?.emit('note-move', { roomId, noteId: id, x, y });
+    socketRef.current?.emit('note-move', { roomId, id, x, y });
+
+    // Only persist the FINAL resting position — no DB write per throttled tick.
+    if (isFinal) {
+      fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x, y }),
+      }).catch((e) => console.error(e));
+    }
   };
 
-  // Called on every mousemove by the canvas; throttled here so the socket
-  // isn't flooded (~20 msgs/sec max). Keeping the throttle inside the hook
-  // means the component doesn't have to know about it.
   const reportCursor = (x: number, y: number) => {
     const now = Date.now();
     if (now - lastCursorSent.current < 50) return;

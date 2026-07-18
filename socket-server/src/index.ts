@@ -2,16 +2,6 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { randomUUID } from 'crypto';
-
-interface Note {
-  id: string;
-  text: string;
-  color: string;
-  authorName: string;
-  x: number;
-  y: number;
-}
 
 interface RoomUser {
   socketId: string;
@@ -40,12 +30,6 @@ const io = new Server(httpServer, {
 });
 
 const rooms = new Map<string, Map<string, RoomUser>>();
-const notes = new Map<string, Map<string, Note>>();
-
-function getRoomNotes(roomId: string): Note[] {
-  const room = notes.get(roomId);
-  return room ? Array.from(room.values()) : [];
-}
 
 function getRoomUsers(roomId: string): RoomUser[] {
   const room = rooms.get(roomId);
@@ -73,39 +57,22 @@ io.on('connection', (socket) => {
 
       // Broadcast the full updated list to EVERYONE in the room, including the joiner
       io.to(roomId).emit('presence-update', getRoomUsers(roomId));
-
-      socket.emit('notes-sync', getRoomNotes(roomId));
     },
   );
 
+  socket.on('note-create', ({ roomId, note }: { roomId: string; note: unknown }) => {
+    socket.to(roomId).emit('note-create', note);
+  });
+
   socket.on(
-    'note-create',
-    ({ roomId, text, x, y }: { roomId: string; text: string; x: number; y: number }) => {
-      const room = rooms.get(roomId);
-      const user = room?.get(socket.id);
-      if (!user || !text.trim()) return;
-
-      const note: Note = {
-        id: randomUUID(),
-        text: text.trim(),
-        color: user.color,
-        authorName: user.name,
-        x: typeof x === 'number' ? x : 0.5,
-        y: typeof y === 'number' ? x : 0.5,
-      };
-
-      if (!notes.has(roomId)) notes.set(roomId, new Map());
-      notes.get(roomId)!.set(note.id, note);
-
-      // Include the sender (io.to, not socket.to) — they need the
-      // server-assigned id back, not just their own optimistic copy.
-      io.to(roomId).emit('note-create', note);
+    'note-move',
+    ({ roomId, id, x, y }: { roomId: string; id: string; x: number; y: number }) => {
+      socket.to(roomId).emit('note-move', { id, x, y });
     },
   );
 
   socket.on('note-delete', ({ roomId, noteId }: { roomId: string; noteId: string }) => {
-    notes.get(roomId)?.delete(noteId);
-    io.to(roomId).emit('note-delete', noteId);
+    socket.to(roomId).emit('note-delete', noteId);
   });
 
   socket.on('cursor-move', ({ roomId, x, y }: { roomId: string; x: number; y: number }) => {
@@ -125,20 +92,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on(
-    'note-move',
-    ({ roomId, noteId, x, y }: { roomId: string; noteId: string; x: number; y: number }) => {
-      const note = notes.get(roomId)?.get(noteId);
-      if (!note) return; // note was deleted concurrently — safely ignore
-
-      note.x = x;
-      note.y = y;
-
-      // Everyone EXCEPT the dragger — they already moved it optimistically.
-      socket.to(roomId).emit('note-move', { id: noteId, x, y });
-    },
-  );
-
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
 
@@ -150,7 +103,6 @@ io.on('connection', (socket) => {
       // Avoid leaking memory: remove the room entry once nobody's left in it
       if (rooms.get(roomId)!.size === 0) {
         rooms.delete(roomId);
-        notes.delete(roomId);
       }
     }
   });
