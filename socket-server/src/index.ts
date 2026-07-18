@@ -2,6 +2,22 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { randomUUID } from 'crypto';
+
+interface Note {
+  id: string;
+  text: string;
+  color: string;
+  authorName: string;
+  x: number;
+  y: number;
+}
+
+interface RoomUser {
+  socketId: string;
+  name: string;
+  color: string;
+}
 
 const app = express();
 
@@ -23,13 +39,13 @@ const io = new Server(httpServer, {
   },
 });
 
-interface RoomUser {
-  socketId: string;
-  name: string;
-  color: string;
-}
-
 const rooms = new Map<string, Map<string, RoomUser>>();
+const notes = new Map<string, Map<string, Note>>();
+
+function getRoomNotes(roomId: string): Note[] {
+  const room = notes.get(roomId);
+  return room ? Array.from(room.values()) : [];
+}
 
 function getRoomUsers(roomId: string): RoomUser[] {
   const room = rooms.get(roomId);
@@ -57,13 +73,39 @@ io.on('connection', (socket) => {
 
       // Broadcast the full updated list to EVERYONE in the room, including the joiner
       io.to(roomId).emit('presence-update', getRoomUsers(roomId));
+
+      socket.emit('notes-sync', getRoomNotes(roomId));
     },
   );
 
-  socket.on('test-message', ({ roomId, message }: { roomId: string; message: string }) => {
-    console.log(`[room ${roomId}] message: ${message}`);
-    // Send to everyone else in the room, but NOT back to the sender
-    socket.to(roomId).emit('test-message', message);
+  socket.on(
+    'note-create',
+    ({ roomId, text, x, y }: { roomId: string; text: string; x: number; y: number }) => {
+      const room = rooms.get(roomId);
+      const user = room?.get(socket.id);
+      if (!user || !text.trim()) return;
+
+      const note: Note = {
+        id: randomUUID(),
+        text: text.trim(),
+        color: user.color,
+        authorName: user.name,
+        x: typeof x === 'number' ? x : 0.5,
+        y: typeof y === 'number' ? x : 0.5,
+      };
+
+      if (!notes.has(roomId)) notes.set(roomId, new Map());
+      notes.get(roomId)!.set(note.id, note);
+
+      // Include the sender (io.to, not socket.to) — they need the
+      // server-assigned id back, not just their own optimistic copy.
+      io.to(roomId).emit('note-create', note);
+    },
+  );
+
+  socket.on('note-delete', ({ roomId, noteId }: { roomId: string; noteId: string }) => {
+    notes.get(roomId)?.delete(noteId);
+    io.to(roomId).emit('note-delete', noteId);
   });
 
   socket.on('cursor-move', ({ roomId, x, y }: { roomId: string; x: number; y: number }) => {
@@ -94,6 +136,7 @@ io.on('connection', (socket) => {
       // Avoid leaking memory: remove the room entry once nobody's left in it
       if (rooms.get(roomId)!.size === 0) {
         rooms.delete(roomId);
+        notes.delete(roomId);
       }
     }
   });
