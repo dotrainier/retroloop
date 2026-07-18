@@ -125,6 +125,20 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on(
+    'note-move',
+    ({ roomId, noteId, x, y }: { roomId: string; noteId: string; x: number; y: number }) => {
+      const note = notes.get(roomId)?.get(noteId);
+      if (!note) return; // note was deleted concurrently — safely ignore
+
+      note.x = x;
+      note.y = y;
+
+      // Everyone EXCEPT the dragger — they already moved it optimistically.
+      socket.to(roomId).emit('note-move', { id: noteId, x, y });
+    },
+  );
+
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
 

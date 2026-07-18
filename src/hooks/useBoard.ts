@@ -8,6 +8,7 @@ import { randomColor, randomName, scatterPosition } from '@/lib/identity';
 export function useBoard(roomId: string) {
   const socketRef = useRef<Socket | null>(null);
   const lastCursorSent = useRef(0);
+  const lastMoveSent = useRef(0);
 
   const [connected, setConnected] = useState(false);
   const [users, setUsers] = useState<RoomUser[]>([]);
@@ -77,6 +78,12 @@ export function useBoard(roomId: string) {
       }));
     });
 
+    socket.on('note-move', (m: { id: string; x: number; y: number }) => {
+      setNotes((prev) =>
+        prev[m.id] ? { ...prev, [m.id]: { ...prev[m.id], x: m.x, y: m.y } } : prev,
+      );
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -92,6 +99,17 @@ export function useBoard(roomId: string) {
 
   const deleteNote = (id: string) => {
     socketRef.current?.emit('note-delete', { roomId, noteId: id });
+  };
+
+  const moveNote = (id: string, x: number, y: number, isFinal = false) => {
+    // Optimistic: update our own copy instantly so the drag feels responsive.
+    setNotes((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], x, y } } : prev));
+
+    // Throttle the network chatter, but always send the final resting position.
+    const now = Date.now();
+    if (!isFinal && now - lastMoveSent.current < 40) return;
+    lastMoveSent.current = now;
+    socketRef.current?.emit('note-move', { roomId, noteId: id, x, y });
   };
 
   // Called on every mousemove by the canvas; throttled here so the socket
@@ -113,6 +131,7 @@ export function useBoard(roomId: string) {
     cursors,
     createNote,
     deleteNote,
+    moveNote,
     reportCursor,
   };
 }
