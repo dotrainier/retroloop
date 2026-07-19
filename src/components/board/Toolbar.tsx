@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Identity, RoomUser } from '@/lib/board-types';
+import ThemeToggle from '../ThemeToggle';
 
 function initials(name: string) {
   const words = name.trim().split(/\s+/);
@@ -60,6 +61,7 @@ export default function Toolbar({
         </div>
 
         <div className='flex items-center gap-4'>
+          <ThemeToggle />
           <button
             onClick={onOrganize}
             disabled={organizing}

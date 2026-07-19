@@ -7,6 +7,13 @@
   --line: rgba(35, 32, 26, 0.12);
 }
 
+.dark {
+  --paper: #1c1a17; /* warm near-black, not pure grey — keeps the paper feel */
+  --ink: #ece5d6; /* warm off-white text */
+  --accent: #e8663f; /* a touch brighter so it pops on dark */
+  --line: rgba(236, 229, 214, 0.14);
+}
+
 body {
   font-family: var(--font-bricolage), system-ui, sans-serif;
   color: var(--ink);
