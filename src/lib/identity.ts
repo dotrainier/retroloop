@@ -1,3 +1,7 @@
+import type { Identity } from './board-types';
+
+const IDENTITY_KEY = 'retroloop-identity';
+
 export const NOTE_COLORS = [
   '#F3D06A', // butter
   '#F0A876', // peach
@@ -33,4 +37,42 @@ export function scatterPosition(): { x: number; y: number } {
     x: 0.08 + Math.random() * 0.62, // 0.08..0.70
     y: 0.16 + Math.random() * 0.5, //  0.16..0.66
   };
+}
+
+// Read a saved identity from localStorage, or fall back to a random guest.
+// SSR-safe: on the server there's no localStorage, so it returns a random one
+// (which is fine — the board only renders this after mount on the client).
+export function loadIdentity(): Identity {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(IDENTITY_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<Identity>;
+        if (parsed.name && parsed.color) {
+          return { name: parsed.name, color: parsed.color };
+        }
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }
+  return { name: randomName(), color: randomColor() };
+}
+
+export function saveIdentity(identity: Identity): void {
+  try {
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+  } catch {
+    // localStorage can be disabled/blocked — degrade quietly
+  }
+}
+
+// True only if the user has previously chosen/saved an identity.
+export function hasStoredIdentity(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(IDENTITY_KEY) !== null;
+  } catch {
+    return false;
+  }
 }

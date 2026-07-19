@@ -4,7 +4,11 @@ import { useState } from 'react';
 import type { Identity, RoomUser } from '@/lib/board-types';
 
 function initials(name: string) {
-  return name.replace('Guest ', '').slice(0, 3);
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return words[0].slice(0, 1).toUpperCase();
 }
 
 export default function Toolbar({

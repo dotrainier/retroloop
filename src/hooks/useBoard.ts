@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { CursorInfo, Identity, Note, RoomUser } from '@/lib/board-types';
-import { randomColor, randomName, scatterPosition } from '@/lib/identity';
+import { loadIdentity, scatterPosition } from '@/lib/identity';
 
 export function useBoard(roomId: string) {
   const socketRef = useRef<Socket | null>(null);
@@ -16,7 +16,7 @@ export function useBoard(roomId: string) {
   const [cursors, setCursors] = useState<Record<string, CursorInfo>>({});
   const [notes, setNotes] = useState<Record<string, Note>>({});
 
-  const [me] = useState<Identity>(() => ({ name: randomName(), color: randomColor() }));
+  const [me] = useState<Identity>(() => loadIdentity());
   const [ready, setReady] = useState(false);
   useEffect(() => {
     setReady(true);

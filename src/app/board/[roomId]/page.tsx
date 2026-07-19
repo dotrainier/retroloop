@@ -1,17 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useBoard } from '@/hooks/useBoard';
 import { useOrganize } from '@/hooks/useOrganize';
+import { hasStoredIdentity } from '@/lib/identity';
 import Toolbar from '@/components/board/Toolbar';
 import BoardCanvas from '@/components/board/BoardCanvas';
 import NoteComposer from '@/components/board/NoteComposer';
 import OrganizePanel from '@/components/board/OrganizePanel';
+import NamePrompt from '@/components/board/NamePrompt';
 
 export default function BoardPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const board = useBoard(roomId);
   const ai = useOrganize(roomId);
+
+  // Decide once, after mount, whether this visitor needs the prompt.
+  const [showPrompt, setShowPrompt] = useState(() => !hasStoredIdentity());
 
   if (!board.ready) {
     return (
@@ -47,6 +53,17 @@ export default function BoardPage() {
       )}
 
       {ai.result && <OrganizePanel result={ai.result} notes={board.notes} onClose={ai.clear} />}
+
+      {showPrompt && (
+        <NamePrompt
+          onDone={() => {
+            setShowPrompt(false);
+            // Reload so useBoard re-reads the freshly saved identity and
+            // reconnects with the correct name/color.
+            window.location.reload();
+          }}
+        />
+      )}
     </main>
   );
 }
