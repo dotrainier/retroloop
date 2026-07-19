@@ -24,3 +24,13 @@ export interface Identity {
   name: string;
   color: string;
 }
+
+export interface OrganizeCluster {
+  label: string;
+  noteIds: string[];
+}
+
+export interface OrganizeResult {
+  summary: string;
+  clusters: OrganizeCluster[];
+}

@@ -26,15 +26,24 @@ export function useBoard(roomId: string) {
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
-    fetch(`/api/boards/${roomId}`)
-      .then((r) => r.json())
-      .then((board: { notes: Note[] }) => {
+
+    const loadBoard = async () => {
+      try {
+        const res = await fetch(`/api/boards/${roomId}`);
+        if (!res.ok) throw new Error('Failed to load board');
+        const board: { notes: Note[] } = await res.json();
         if (cancelled) return;
+
         const record: Record<string, Note> = {};
         for (const n of board.notes) record[n.id] = n;
         setNotes(record);
-      })
-      .catch((e) => console.error('Failed to load board', e));
+      } catch (e) {
+        if (!cancelled) console.error('Failed to load board', e);
+      }
+    };
+
+    loadBoard();
+
     return () => {
       cancelled = true;
     };
@@ -116,14 +125,34 @@ export function useBoard(roomId: string) {
     }
   };
 
-  const deleteNote = (id: string) => {
+  const deleteNote = async (id: string) => {
+    // Optimistic: remove locally right away, then confirm with the server.
     setNotes((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
-    }); // optimistic
+    });
     socketRef.current?.emit('note-delete', { roomId, noteId: id });
-    fetch(`/api/notes/${id}`, { method: 'DELETE' }).catch((e) => console.error(e));
+
+    try {
+      await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Persist a note's resting position. Kept separate so the hot-path moveNote
+  // can stay synchronous and just fire-and-forget this on drop.
+  const persistPosition = async (id: string, x: number, y: number) => {
+    try {
+      await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x, y }),
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const moveNote = (id: string, x: number, y: number, isFinal = false) => {
@@ -135,13 +164,7 @@ export function useBoard(roomId: string) {
     socketRef.current?.emit('note-move', { roomId, id, x, y });
 
     // Only persist the FINAL resting position — no DB write per throttled tick.
-    if (isFinal) {
-      fetch(`/api/notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ x, y }),
-      }).catch((e) => console.error(e));
-    }
+    if (isFinal) void persistPosition(id, x, y);
   };
 
   const reportCursor = (x: number, y: number) => {

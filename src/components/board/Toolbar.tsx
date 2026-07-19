@@ -8,11 +8,15 @@ export default function Toolbar({
   roomId,
   connected,
   users,
+  onOrganize,
+  organizing,
 }: {
   roomId: string;
   connected: boolean;
   users: RoomUser[];
   me: Identity;
+  onOrganize: () => void;
+  organizing: boolean;
 }) {
   return (
     <header className='pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center p-4'>
@@ -21,12 +25,27 @@ export default function Toolbar({
           <span className='font-display text-xl font-semibold text-[var(--ink)]'>
             RetroLoop<span className='text-[var(--accent)]'>.</span>
           </span>
-          <span className='rounded-full bg-[var(--ink)]/5 px-2 py-0.5 text-xs font-medium text-[var(--ink)]/60'>
-            {roomId}
-          </span>
+          <button
+            onClick={() => navigator.clipboard.writeText(window.location.href)}
+            title='Copy board link'
+            className='rounded-full bg-[var(--ink)]/5 px-2 py-0.5 text-xs font-medium text-[var(--ink)]/60 transition hover:bg-[var(--ink)]/10'
+          >
+            {roomId} · copy link
+          </button>
         </div>
 
         <div className='flex items-center gap-4'>
+          <button
+            onClick={onOrganize}
+            disabled={organizing}
+            className='flex items-center gap-1.5 rounded-full bg-[var(--ink)] px-3.5 py-2 text-xs font-semibold text-[var(--paper)] transition hover:brightness-125 disabled:opacity-50'
+          >
+            <svg width='14' height='14' viewBox='0 0 24 24' fill='currentColor'>
+              <path d='M12 2l1.9 5.6L19.5 9.5 13.9 11.4 12 17l-1.9-5.6L4.5 9.5l5.6-1.9z' />
+            </svg>
+            {organizing ? 'Organizing…' : 'Organize with AI'}
+          </button>
+
           <div className='flex items-center gap-1.5 text-xs font-medium text-[var(--ink)]/60'>
             <span
               className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-amber-500'}`}
