@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import type { Identity, RoomUser } from '@/lib/board-types';
 
 function initials(name: string) {
@@ -18,6 +21,20 @@ export default function Toolbar({
   onOrganize: () => void;
   organizing: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      // Revert the label after 2s so it goes back to normal.
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard can fail (e.g. insecure context) — leave the label unchanged.
+      console.error('Copy failed');
+    }
+  };
+
   return (
     <header className='pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center p-4'>
       <div className='pointer-events-auto flex w-full max-w-5xl items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--paper)]/85 px-5 py-3 shadow-[0_6px_20px_-10px_rgba(35,32,26,0.4)] backdrop-blur'>
@@ -26,11 +43,15 @@ export default function Toolbar({
             RetroLoop<span className='text-[var(--accent)]'>.</span>
           </span>
           <button
-            onClick={() => navigator.clipboard.writeText(window.location.href)}
+            onClick={copyLink}
             title='Copy board link'
-            className='rounded-full bg-[var(--ink)]/5 px-2 py-0.5 text-xs font-medium text-[var(--ink)]/60 transition hover:bg-[var(--ink)]/10'
+            className={`rounded-full px-2 py-0.5 text-xs font-medium transition ${
+              copied
+                ? 'bg-emerald-500/15 text-emerald-700'
+                : 'bg-[var(--ink)]/5 text-[var(--ink)]/60 hover:bg-[var(--ink)]/10'
+            }`}
           >
-            {roomId} · copy link
+            {copied ? '✓ Copied!' : `${roomId} · copy link`}
           </button>
         </div>
 
