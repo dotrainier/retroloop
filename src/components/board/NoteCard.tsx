@@ -133,7 +133,7 @@ export default function NoteCard({
           onClick={() => onDelete(note.id)}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label='Delete note'
-          className='absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[var(--ink)]/50 opacity-0 transition hover:bg-black/10 hover:text-[var(--ink)] group-hover:opacity-100'
+          className='absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[var(--ink)]/50  sm:opacity-0 opacity-100 transition hover:bg-black/10 hover:text-[var(--ink)] sm:group-hover:opacity-100'
         >
           ✕
         </button>

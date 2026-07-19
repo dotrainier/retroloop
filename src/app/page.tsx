@@ -38,9 +38,9 @@ export default function HomePage() {
   };
 
   return (
-    <main className='dot-grid flex min-h-screen w-screen items-center justify-center p-6'>
-      <div className='w-full max-w-md rounded-3xl border border-[var(--line)] bg-[var(--paper)]/80 p-8 shadow-[0_20px_50px_-20px_rgba(35,32,26,0.5)] backdrop-blur'>
-        <h1 className='font-display text-4xl font-semibold text-[var(--ink)]'>
+    <main className='dot-grid flex min-h-dvh w-screen items-center justify-center p-6'>
+      <div className='w-full max-w-md rounded-3xl border border-[var(--line)] bg-[var(--paper)]/80 sm:p-8 p-6 shadow-[0_20px_50px_-20px_rgba(35,32,26,0.5)] backdrop-blur'>
+        <h1 className='font-display sm:text-4xl text-3xl font-semibold text-[var(--ink)]'>
           RetroLoop<span className='text-[var(--accent)]'>.</span>
         </h1>
         <p className='mt-2 text-sm text-[var(--ink)]/60'>

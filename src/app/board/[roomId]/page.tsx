@@ -21,14 +21,14 @@ export default function BoardPage() {
 
   if (!board.ready) {
     return (
-      <div className='dot-grid flex h-screen w-screen items-center justify-center text-[var(--ink)]/50'>
+      <div className='dot-grid flex h-dvh w-screen items-center justify-center text-[var(--ink)]/50'>
         Connecting…
       </div>
     );
   }
 
   return (
-    <main className='relative h-screen w-screen overflow-hidden'>
+    <main className='relative h-dvh w-screen overflow-hidden'>
       <Toolbar
         roomId={roomId}
         connected={board.connected}
