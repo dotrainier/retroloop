@@ -3,6 +3,9 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 
+const PORT = process.env.PORT || 4000;
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+
 interface RoomUser {
   socketId: string;
   name: string;
@@ -12,7 +15,7 @@ interface RoomUser {
 const app = express();
 
 // Allow requests from your Next.js dev server
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: CLIENT_ORIGIN }));
 
 // Simple health check — lets you sanity-check the server in a browser
 app.get('/', (_req, res) => {
@@ -24,7 +27,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: CLIENT_ORIGIN,
     methods: ['GET', 'POST'],
   },
 });
@@ -35,8 +38,6 @@ function getRoomUsers(roomId: string): RoomUser[] {
   const room = rooms.get(roomId);
   return room ? Array.from(room.values()) : [];
 }
-
-const PORT = process.env.PORT || 4000;
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
