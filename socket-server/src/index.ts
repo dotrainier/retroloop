@@ -72,6 +72,23 @@ io.on('connection', (socket) => {
     },
   );
 
+  socket.on(
+    'note-update',
+    ({
+      roomId,
+      id,
+      text,
+      author,
+    }: {
+      roomId: string;
+      id: string;
+      text: string;
+      author: string;
+    }) => {
+      socket.to(roomId).emit('note-update', { id, text, author });
+    },
+  );
+
   socket.on('note-delete', ({ roomId, noteId }: { roomId: string; noteId: string }) => {
     socket.to(roomId).emit('note-delete', noteId);
   });

@@ -15,7 +15,7 @@ export interface Note {
   id: string;
   text: string;
   color: string;
-  authorName: string;
+  author: string;
   x: number; // 0–1 fraction of the canvas
   y: number; // 0–1 fraction of the canvas
 }

@@ -85,6 +85,13 @@ export function useBoard(roomId: string) {
         prev[m.id] ? { ...prev, [m.id]: { ...prev[m.id], x: m.x, y: m.y } } : prev,
       );
     });
+
+    socket.on('note-update', (m: { id: string; text: string; author: string }) => {
+      setNotes((prev) =>
+        prev[m.id] ? { ...prev, [m.id]: { ...prev[m.id], text: m.text, author: m.author } } : prev,
+      );
+    });
+
     socket.on('note-delete', (id: string) => {
       setNotes((prev) => {
         const next = { ...prev };
@@ -120,6 +127,24 @@ export function useBoard(roomId: string) {
       const note: Note = await res.json(); // DB-assigned id comes back here
       setNotes((prev) => ({ ...prev, [note.id]: note })); // show it for us
       socketRef.current?.emit('note-create', { roomId, note }); // and for others
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const updateNote = async (id: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setNotes((prev) =>
+      prev[id] ? { ...prev, [id]: { ...prev[id], text: trimmed, author: me.name } } : prev,
+    );
+    socketRef.current?.emit('note-update', { roomId, id, text: trimmed, author: me.name });
+    try {
+      await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: trimmed, author: me.name }),
+      });
     } catch (e) {
       console.error(e);
     }
@@ -183,6 +208,7 @@ export function useBoard(roomId: string) {
     cursors,
     createNote,
     deleteNote,
+    updateNote,
     moveNote,
     reportCursor,
   };

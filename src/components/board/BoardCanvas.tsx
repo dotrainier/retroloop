@@ -11,12 +11,14 @@ export default function BoardCanvas({
   onCursorMove,
   onDeleteNote,
   onMoveNote,
+  onUpdateNote,
 }: {
   notes: Note[];
   cursors: Record<string, CursorInfo>;
   onCursorMove: (x: number, y: number) => void;
   onDeleteNote: (id: string) => void;
   onMoveNote: (id: string, x: number, y: number, isFinal?: boolean) => void;
+  onUpdateNote: (id: string, text: string) => void;
 }) {
   const boardRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +49,7 @@ export default function BoardCanvas({
           boardRef={boardRef}
           onDelete={onDeleteNote}
           onMove={onMoveNote}
+          onUpdate={onUpdateNote}
         />
       ))}
 

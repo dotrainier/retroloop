@@ -43,6 +43,7 @@ export default function BoardPage() {
         onCursorMove={board.reportCursor}
         onDeleteNote={board.deleteNote}
         onMoveNote={board.moveNote}
+        onUpdateNote={board.updateNote}
       />
       <NoteComposer onCreate={board.createNote} />
 
